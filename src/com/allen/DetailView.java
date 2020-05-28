@@ -3,21 +3,21 @@ package com.allen;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.ListSelectionListener;
-import javax.swing.event.TableModelEvent;
-import javax.swing.event.TableModelListener;
 import javax.swing.filechooser.FileSystemView;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableColumn;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreePath;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.*;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -222,6 +222,29 @@ public class DetailView extends JPanel {
     }
 
     private void deleteFile() {
+        if (currentFile == null) {
+            showErrorMessage("No location selected for delete file.", "Select Location");
+            return;
+        }
+        int result = JOptionPane.showConfirmDialog(
+                fileManager.getGui(),
+                "Are you confirm to delete this file?",
+                "Delete file",
+                JOptionPane.YES_NO_OPTION
+        );
+        if (result == JOptionPane.OK_OPTION) {
+            TreePath parentPath = findTreePath(currentFile.getParentFile());
+            DefaultMutableTreeNode parentNode =
+                    (DefaultMutableTreeNode)parentPath.getLastPathComponent();
+            boolean isDir = currentFile.isDirectory();
+            boolean deleted = currentFile.delete();
+            if (!deleted) {
+                if (isDir) {
+
+                }
+            }
+
+        }
     }
 
     private void renameFile() {
@@ -416,18 +439,19 @@ public class DetailView extends JPanel {
         // TODO: Bug
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
-                if (fileTableModel==null) {
+                if (fileTableModel == null) {
                     fileTableModel = new FileTableModel();
                     table.setModel(fileTableModel);
                 }
                 table.getSelectionModel().removeListSelectionListener(listSelectionListener);
                 fileTableModel.setFiles(files);
                 table.getSelectionModel().addListSelectionListener(listSelectionListener);
+
                 if (!cellSizesSet) {
                     Icon icon = fileSystemView.getSystemIcon(files.get(0));
 
                     // size adjustment to better account for icons
-                    table.setRowHeight( icon.getIconHeight()+rowIconPadding );
+                    table.setRowHeight(icon.getIconHeight() + rowIconPadding);
 
                     setColumnWidth(0,-1);
                     setColumnWidth(3,60);

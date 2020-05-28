@@ -112,6 +112,7 @@ public class FileTree extends JTree {
     }
 
     void showChildren(DefaultMutableTreeNode node) {
+        // TODO:bug
         FileSystemView fileSystemView = FileSystemView.getFileSystemView();
         setEnabled(false);
         fileManager.getProgressBar().setVisible(true);
