@@ -74,6 +74,7 @@ public class FileManager {
         fileManager = new FileManager();
         f.add(fileManager.setupGui());
         f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        f.setLocationByPlatform(true);
         f.pack();
         f.setVisible(true);
     }

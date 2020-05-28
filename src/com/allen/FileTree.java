@@ -111,6 +111,7 @@ public class FileTree extends JTree {
         return treeModel;
     }
 
+    /** Add the files that are contained within the directory of this node. */
     void showChildren(DefaultMutableTreeNode node) {
         // TODO:bug
         FileSystemView fileSystemView = FileSystemView.getFileSystemView();
@@ -151,7 +152,6 @@ public class FileTree extends JTree {
             }
         };
         worker.execute();
-
     }
 
 }

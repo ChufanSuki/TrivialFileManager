@@ -1,5 +1,7 @@
 package com.allen;
 
+import org.apache.commons.io.FileUtils;
+
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.ListSelectionListener;
@@ -71,7 +73,7 @@ public class DetailView extends JPanel {
         setLayout(new BorderLayout(3,3));
         /* File list view **/
         table = new JTable();
-        table.setFillsViewportHeight(true);
+        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.setAutoCreateRowSorter(true);
         table.setShowVerticalLines(false);
 //        TableModelListener modelListener = new TableModelListener() {
@@ -124,7 +126,6 @@ public class DetailView extends JPanel {
         flag.add(isFile);
         fileDetailsLabels.add(new JLabel("Type"));
         fileDetailsValues.add(flag);
-        add(fileMainDetails, BorderLayout.CENTER);
 
         int count = fileDetailsLabels.getComponentCount();
         for (int ii = 0; ii < count; ii++) {
@@ -232,19 +233,34 @@ public class DetailView extends JPanel {
                 "Delete file",
                 JOptionPane.YES_NO_OPTION
         );
-        if (result == JOptionPane.OK_OPTION) {
-            TreePath parentPath = findTreePath(currentFile.getParentFile());
-            DefaultMutableTreeNode parentNode =
-                    (DefaultMutableTreeNode)parentPath.getLastPathComponent();
-            boolean isDir = currentFile.isDirectory();
-            boolean deleted = currentFile.delete();
-            if (!deleted) {
-                if (isDir) {
-
+        if (result==JOptionPane.OK_OPTION) {
+            try {
+                System.out.println("currentFile: " + currentFile);
+                TreePath parentPath = findTreePath(currentFile.getParentFile());
+                System.out.println(currentFile.getParentFile());
+                System.out.println("parentPath: " + parentPath);
+                DefaultMutableTreeNode parentNode =
+                        (DefaultMutableTreeNode)parentPath.getLastPathComponent();
+                System.out.println("parentNode: " + parentNode);
+                TreePath currentPath = findTreePath(currentFile);
+                System.out.println(currentPath);
+                DefaultMutableTreeNode currentNode =
+                        (DefaultMutableTreeNode)currentPath.getLastPathComponent();
+                System.out.println("currentNode: " + currentNode);
+                fileManager.getFileTree().getTreeModel().removeNodeFromParent(currentNode);
+                if (FileUtils.deleteQuietly(currentFile)) {
+                    fileManager.getFileTree().showChildren(parentNode);
+                } else {
+                    String msg = "The file '" +
+                            currentFile +
+                            "' could not be deleted.";
+                    showErrorMessage(msg,"Delete Failed");
                 }
+            } catch(Throwable t) {
+                showThrowable(t);
             }
-
         }
+        fileManager.getGui().repaint();
     }
 
     private void renameFile() {
@@ -354,20 +370,9 @@ public class DetailView extends JPanel {
         return null;
     }
 
+    /** Update the File details view with the details of this File. */
     public void setFileDetail(File file) {
         // TODO: Bug
-//        date.setText(String.valueOf(file.lastModified()));
-//        size.setText(String.valueOf(size(file.toPath())));
-//        if (file.isDirectory()) {
-//            isDir.setSelected(true);
-//            isFile.setSelected(false);
-//        } else {
-//            isDir.setSelected(false);
-//            isFile.setSelected(true);
-//        }
-//        fileIcon.setIcon(FileSystemView.getFileSystemView().getSystemIcon(file));
-//        fileIcon.setText(file.getName());
-//        path.setText(file.getAbsolutePath());
         currentFile = fileManager.getCurrentFile();
         currentFile = file;
         Icon icon = fileSystemView.getSystemIcon(file);
@@ -436,42 +441,42 @@ public class DetailView extends JPanel {
     }
 
     void setTableData(List<File> files) {
+        System.out.println(files);
         // TODO: Bug
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                if (fileTableModel == null) {
-                    fileTableModel = new FileTableModel();
-                    table.setModel(fileTableModel);
-                }
-                table.getSelectionModel().removeListSelectionListener(listSelectionListener);
-                fileTableModel.setFiles(files);
-                table.getSelectionModel().addListSelectionListener(listSelectionListener);
+        SwingUtilities.invokeLater(() -> {
+            if (fileTableModel == null) {
+                fileTableModel = new FileTableModel();
+                table.setModel(fileTableModel);
+            }
+            table.getSelectionModel().removeListSelectionListener(listSelectionListener);
+            fileTableModel.setFiles(files);
+            table.getSelectionModel().addListSelectionListener(listSelectionListener);
 
-                if (!cellSizesSet) {
-                    Icon icon = fileSystemView.getSystemIcon(files.get(0));
+            if (!cellSizesSet) {
+                Icon icon = fileSystemView.getSystemIcon(files.get(0));
 
-                    // size adjustment to better account for icons
-                    table.setRowHeight(icon.getIconHeight() + rowIconPadding);
+                // size adjustment to better account for icons
+                table.setRowHeight(icon.getIconHeight() + rowIconPadding);
 
-                    setColumnWidth(0,-1);
-                    setColumnWidth(3,60);
-                    table.getColumnModel().getColumn(3).setMaxWidth(120);
-                    setColumnWidth(4,-1);
-                    setColumnWidth(5,-1);
-                    setColumnWidth(6,-1);
-                    setColumnWidth(7,-1);
-                    setColumnWidth(8,-1);
-                    setColumnWidth(9,-1);
+                setColumnWidth(0,-1);
+                setColumnWidth(3,60);
+                table.getColumnModel().getColumn(3).setMaxWidth(120);
+                setColumnWidth(4,-1);
+                setColumnWidth(5,-1);
+                setColumnWidth(6,-1);
+                setColumnWidth(7,-1);
+                setColumnWidth(8,-1);
+                setColumnWidth(9,-1);
 
-                    cellSizesSet = true;
-                }
+                cellSizesSet = true;
             }
         });
     }
 
+
     private void setColumnWidth(int column, int width) {
         TableColumn tableColumn = table.getColumnModel().getColumn(column);
-        if (width<0) {
+        if (width < 0) {
             // use the preferred width of the header..
             JLabel label = new JLabel( (String)tableColumn.getHeaderValue() );
             Dimension preferred = label.getPreferredSize();
@@ -483,9 +488,12 @@ public class DetailView extends JPanel {
         tableColumn.setMinWidth(width);
     }
 
+    /** A TableModel to hold File[]. */
     class FileTableModel extends AbstractTableModel {
+
         private List<File> files;
-        private String[] columnNames = {
+        private FileSystemView fileSystemView = FileSystemView.getFileSystemView();
+        private String[] columns = {
                 "Icon",
                 "File",
                 "Path/name",
@@ -499,32 +507,16 @@ public class DetailView extends JPanel {
         };
 
         FileTableModel() {
-            files = new ArrayList<>();
+            this(new ArrayList<>());
         }
 
         FileTableModel(List<File> files) {
             this.files = files;
         }
 
-        void setFiles(List<File> files) {
-            this.files = files;
-            fireTableDataChanged();
-        }
-
-        @Override
-        public int getRowCount() {
-            return files.size();
-        }
-
-        @Override
-        public int getColumnCount() {
-            return columnNames.length;
-        }
-
-        @Override
-        public Object getValueAt(int rowIndex, int columnIndex) {
-            File file = files.get(rowIndex);
-            switch (columnIndex) {
+        public Object getValueAt(int row, int column) {
+            File file = files.get(row);
+            switch (column) {
                 case 0:
                     return fileSystemView.getSystemIcon(file);
                 case 1:
@@ -551,12 +543,43 @@ public class DetailView extends JPanel {
             return "";
         }
 
+        public int getColumnCount() {
+            return columns.length;
+        }
+
+        public Class<?> getColumnClass(int column) {
+            switch (column) {
+                case 0:
+                    return ImageIcon.class;
+                case 3:
+                    return Long.class;
+                case 4:
+                    return Date.class;
+                case 5:
+                case 6:
+                case 7:
+                case 8:
+                case 9:
+                    return Boolean.class;
+            }
+            return String.class;
+        }
+
+        public String getColumnName(int column) {
+            return columns[column];
+        }
+
+        public int getRowCount() {
+            return files.size();
+        }
+
         public File getFile(int row) {
             return files.get(row);
         }
 
-        public List<File> getFiles() {
-            return files;
+        public void setFiles(List<File> files) {
+            this.files = files;
+            fireTableDataChanged();
         }
     }
 
